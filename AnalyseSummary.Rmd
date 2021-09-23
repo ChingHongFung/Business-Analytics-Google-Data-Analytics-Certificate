@@ -1,0 +1,170 @@
+---
+title: "Analysis"
+author: "Ching Hong Fung"
+date: "9/10/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setting up environment and loading data
+Loading up a few packages to help with data wrangling. Setting the work directory to where the csv files are saved.
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)  #helps wrangle data
+library(lubridate)  #helps wrangle date attributes
+library(ggplot2)  #helps visualize data
+setwd("/Users/asus/Desktop/Coursera/Data Analytics - Google/Capstone1")
+```
+
+Loading the twelve csv files into dataframes.
+```{r}
+m8_2021 <- read.csv("202108-divvy-tripdata.csv")
+m7_2021 <- read.csv("202107-divvy-tripdata.csv")
+m6_2021 <- read.csv("202106-divvy-tripdata.csv")
+m5_2021 <- read.csv("202105-divvy-tripdata.csv")
+m4_2021 <- read.csv("202104-divvy-tripdata.csv")
+m3_2021 <- read.csv("202103-divvy-tripdata.csv")
+m2_2021 <- read.csv("202102-divvy-tripdata.csv")
+m1_2021 <- read.csv("202101-divvy-tripdata.csv")
+m12_2020 <- read.csv("202012-divvy-tripdata.csv")
+m11_2020 <- read.csv("202011-divvy-tripdata.csv")
+m10_2020 <- read.csv("202010-divvy-tripdata.csv")
+m9_2020 <- read.csv("202009-divvy-tripdata.csv")
+```
+
+## Wrangle data and combine into a single dataframe
+Using the colnames() function to check all the csv files have the same column attributes.
+```{r message=FALSE, warning=FALSE}
+colnames(m8_2021)
+colnames(m7_2021)
+colnames(m6_2021)
+colnames(m5_2021)
+colnames(m4_2021)
+colnames(m3_2021)
+colnames(m2_2021)
+colnames(m1_2021)
+colnames(m12_2020)
+colnames(m11_2020)
+colnames(m10_2020)
+colnames(m9_2020)
+```
+
+Using str() to view the data types of the columns. Realised some datatypes don't match among the dataframes.
+```{r message=FALSE, warning=FALSE}
+str(m8_2021)
+str(m7_2021)
+str(m6_2021)
+str(m5_2021)
+str(m4_2021)
+str(m3_2021)
+str(m2_2021)
+str(m1_2021)
+str(m12_2020)
+str(m11_2020)
+str(m10_2020)
+str(m9_2020)
+```
+
+Converting data types of start_station_id and end_station_id from integer to character so dataframes could stack properly. Using mutate() and as.character() and then reassigning the result into the dataframes.
+```{r}
+m11_2020 <-  mutate(m11_2020, start_station_id  = as.character(start_station_id )
+                   ,end_station_id = as.character(end_station_id)) 
+m10_2020 <-  mutate(m10_2020, start_station_id  = as.character(start_station_id )
+                   ,end_station_id = as.character(end_station_id)) 
+m9_2020 <-  mutate(m9_2020, start_station_id  = as.character(start_station_id )
+                   ,end_station_id = as.character(end_station_id))
+```
+
+Stacking the dataframes into one using bind_rows(). Using head to view the top few rows of the combined dataframe.
+```{r}
+all_trips <- bind_rows(m9_2020, m10_2020, m11_2020, m12_2020, m1_2021, m2_2021, m3_2021, m4_2021, m5_2021, m6_2021, m7_2021, m8_2021)
+head(all_trips)
+```
+
+## Inspect and tranform the data
+nrow() shows the total number of trips and summary() gives some general statistics about the entire dataframe.
+```{r}
+str(all_trips)
+nrow(all_trips)
+summary(all_trips)
+```
+
+Adding a table showing the proportions of casual riders and members.
+```{r}
+table(all_trips$member_casual)
+```
+
+Breaking down date into smaller time periods for more aggregate statistics to be drawn. Using as.Date() to convert started_at column into separate month, day and year columns. Make sure to add the format so the new columns pick up the correct numeric values of days, months and years.
+```{r}
+all_trips$date <- as.Date(all_trips$started_at,format = "%d-%m-%y") 
+all_trips$month <- format(as.Date(all_trips$date), "%m")
+all_trips$day <- format(as.Date(all_trips$date), "%d")
+all_trips$year <- format(as.Date(all_trips$date), "%Y")
+all_trips$day_of_week <- format(as.Date(all_trips$date), "%A")
+end <- strptime(as.character(all_trips$ended_at), "%d-%m-%y %H:%M")
+end <- format(end, "%Y-%m-%d %H:%M")
+start <- strptime(as.character(all_trips$started_at), "%d-%m-%y %H:%M")
+start <- format(start, "%Y-%m-%d %H:%M")
+all_trips$ride_length <- difftime(end,start)
+```
+
+Turning ride_length into a numeric for calculations to be done later.
+```{r}
+all_trips$ride_length <- as.numeric(as.character(all_trips$ride_length))
+```
+
+Removing trips that correspond to bikes being taken out of circulation for Quality Control reasons and those showing a negative trip duration.
+```{r}
+all_trips_v2 <- all_trips[!(all_trips$start_station_name == "HQ QR" | all_trips$ride_length<0),]
+```
+
+## Generate descriptive statistics
+Summary of trips data including mean, median, max and min.
+```{r}
+mean(all_trips_v2$ride_length)
+median(all_trips_v2$ride_length)
+max(all_trips_v2$ride_length)
+min(all_trips_v2$ride_length)
+```
+
+Compare summary statistics between members and casual riders.
+```{r}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = mean)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = median)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = max)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = min)
+```
+
+Ordering the dataframe by days of the week for plotting later.
+```{r}
+all_trips_v2$day_of_week <- ordered(all_trips_v2$day_of_week, levels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+```
+
+Creating bar charts using ggplot() to visualise the number of rides by rider type for the days of the week.
+```{r message=FALSE, warning=FALSE}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(as.numeric(ride_length))) %>%
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+Creating bar charts using ggplot() to visualise the average duration by rider type for the days of the week.
+```{r}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
